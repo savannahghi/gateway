@@ -3,7 +3,6 @@ FROM node:12
 WORKDIR /opt/gateway
 
 COPY package*.json ./
-COPY secrets/ ./
 COPY . .
 
 RUN npm ci --only=production
