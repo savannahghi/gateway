@@ -1,8 +1,5 @@
 # gateway
 
-[![pipeline status](https://gitlab.slade360emr.com/go/gateway/badges/develop/pipeline.svg)](https://gitlab.slade360emr.com/go/gateway/-/commits/develop)
-[![coverage report](https://gitlab.slade360emr.com/go/gateway/badges/develop/coverage.svg)](https://gitlab.slade360emr.com/go/gateway/-/commits/develop)
-
 An Apollo GraphQL Gateway that is used to implement federated GraphQL micro-services.
 
 For more context, see https://www.apollographql.com/docs/apollo-server/federation/introduction/
@@ -33,59 +30,23 @@ files:
 ```env
 PORT=8000
 DEBUG=true
-GOOGLE_APPLICATION_CREDENTIALS="<a valid path to a service account JSON file>"
 APQ_ENABLED=false
 SUBSCRIPTIONS_ENABLED=false
 INTROSPECTION_ENABLED=true
 PLAYGROUND_ENABLED=true
 POLLING_INTERVAL=300000
-SCHEMA_REGISTRY_URL="https://test.schemaregistry.bewell.co.ke/"
+SCHEMA_REGISTRY_URL="https://test.schemaregistry.savannahghi.org/"
 POLLING_ENABLED=true
-LOGIN_SERVICE_URL=https://profile-testing.healthcloud.co.ke/login_anonymous
+LOGIN_SERVICE_URL=""
 LOGIN_SERVICE_FLAVOUR="CONSUMER"
 ```
 
 The `LOGIN_SERVIVE_URL` should point to where you want to login. There are
 three environments where a login is possible, _staging_, _testing_ and _prod_
 
-For staging:
-
-```env
-LOGIN_SERVICE_URL=https://login-staging.healthcloud.co.ke/login
-```
-
-For testing:
-
-```env
-LOGIN_SERVICE_URL=https://login-multitenant.healthcloud.co.ke
-```
-
-or
-
-```env
-
-LOGIN_SERVICE_URL=https://login-core.healthcloud.co.ke
-```
-
-or
-
-```env
-LOGIN_SERVICE_URL=https://login-prod.healthcloud.co.ke  # despite the name
-```
-
-For Prod:
-
-```env
-LOGIN_SERVICE_URL=https://login-core-release.healthcloud.co.ke
-```
 
 Obviously it is expected that the user you are trying to login with exists in the respective auth server. If not, you have the honor of creating them.
 
-REMINDER:
-testing, prod and staging endpoint are hosted under `bewell-app` glcoud projects.
-
-For production deployment, the environment variables are configured via the `playbooks/group_vars`
-YAML configuration files.
 
 The `PORT` environment variable is set automatically on the cloud container
 runtimes. In the playbooks, this corresponds to the `port` group variable.
