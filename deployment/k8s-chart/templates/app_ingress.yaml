@@ -1,0 +1,37 @@
+{{- $serviceName := .Values.app.service.name -}}
+{{- $servicePort := .Values.app.service.port -}}
+{{- $paths := .Values.ingress.paths -}}
+{{- $pathType := .Values.ingress.spec.rules.pathType -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.ingress.name }}
+  namespace: {{ .Values.app.namespace }}
+  annotations:
+    meta.helm.sh/release-name: {{ .Values.app.release_name }}
+    meta.helm.sh/release-namespace: {{ .Values.app.namespace }}
+    kubernetes.io/ingress.class: {{ .Values.ingress.annotations.class }}
+    kubernetes.io/tls-acme: {{ .Values.ingress.annotations.tls.acme | quote }}
+    cert-manager.io/issuer: {{ .Values.app.certificate.issuer.name }}
+    acme.cert-manager.io/http01-edit-in-place: {{ .Values.ingress.annotations.acme.http_edit_in_place | quote }}
+    konghq.com/protocols: "https"
+    konghq.com/https-redirect-status-code: "301"
+spec:
+  tls:
+  - secretName: {{ .Values.app.certificate.name }}
+    hosts:
+      - {{ .Values.ingress.host }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+        {{- range $p := $paths }}
+          - path: {{ $p }}
+            pathType: {{ $pathType }}
+            backend:
+              service:
+                 name: {{ $serviceName }}
+                 port: 
+                   number: {{ $servicePort }}
+        {{- end }}
+

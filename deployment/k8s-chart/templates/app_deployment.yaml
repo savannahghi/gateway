@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app.name }}
+  namespace: {{ .Values.app.namespace }}
+  labels:
+    app: {{ .Values.app.name }}
+    group: {{ .Values.app.group }}
+spec:
+  replicas: {{ .Values.app.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name }}
+        group: {{ .Values.app.group }}
+    spec:
+      containers:
+        - name: {{ .Values.app.name }}
+          image: {{ .Values.app.image }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: {{ .Values.app.container.env.port }}
+          env:
+            - name: SCHEMA_REGISTRY_URL
+              value: {{ .Values.app.container.env.schema_registry_url | quote }}
+            - name: LOGIN_SERVICE_URL
+              value: {{ .Values.app.container.env.login_service_url | quote }}
+            - name: LOGIN_SERVICE_FLAVOUR
+              value:
+                {{ .Values.app.container.env.login_service_flavour | quote }}
+            - name: DEBUG
+              value: {{ .Values.app.container.env.debug | quote }}
+            - name: APQ_ENABLED
+              value: {{ .Values.app.container.env.apq_enabled | quote }}
+            - name: POLLING_ENABLED
+              value: {{ .Values.app.container.env.polling_enabled | quote }}
+            - name: SERVICE_HEALTH_CHECK_ENABLED
+              value:
+                {{.Values.app.container.env.service_check_health_enabled | quote}}
+            - name: POLLING_INTERVAL
+              value: {{ .Values.app.container.env.polling_interval | quote }}
+            - name: PORT
+              value: {{ .Values.app.container.env.port | quote }}
+            - name: SUBSCRIPTIONS_ENABLED
+              value:
+                {{ .Values.app.container.env.subscriptions_enabled | quote }}
+            - name: INTROSPECTION_ENABLED
+              value:
+                {{ .Values.app.container.env.introspection_enabled | quote }}
+            - name: PLAYGROUND_ENABLED
+              value:
+                {{ .Values.app.container.env.playground_enabled | quote }}
+            - name: SENTRY_DSN
+              value: {{ .Values.app.container.env.sentry_dns | quote }}
+            - name: JAEGER_URL
+              value: 
+                {{ .Values.app.container.env.jaeger_url | quote }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.app.container.env.port }}
+            initialDelaySeconds: {{ .Values.app.readinesss_probe_initial_delay_seconds }}
+            periodSeconds: {{ .Values.app.readinesss_probe_period_seconds }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.app.container.env.port }}
+            initialDelaySeconds: {{ .Values.app.liveness_probe_initial_delay_seconds }}
+            periodSeconds: {{ .Values.app.liveness_probe_period_seconds }}

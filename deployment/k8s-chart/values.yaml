@@ -1,0 +1,8 @@
+app:
+    group: backend
+    service:
+        type: NodePort
+
+ingress:
+    paths:
+        - /*
