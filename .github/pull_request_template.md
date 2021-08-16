@@ -7,7 +7,7 @@
 #### Summary*
 
 - [ ] fix: Bug fix for `Add the items tackled here as checklists`
-- [x] feat: Completed task
+- [ ] feat: Completed task
 - [ ] chore: Incomplete task
   - [ ] test: Sub-task 1
 
