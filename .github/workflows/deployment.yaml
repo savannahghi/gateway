@@ -4,25 +4,36 @@ on: [push]
 env:
  GCR_NAME: ${{ secrets.GCR_NAME }}
  GCLOUD_SERVICE_KEY: ${{ secrets.GCLOUD_SERVICE_KEY }}
- PROJECT_ID: ${{ secrets.GCLOUD_PROJECT_ID }}
+ PROJECT_ID: ${{ secrets.PROJECT_ID }}
  NAMESPACE: ${{ secrets.NAMESPACE }}
  RELEASE_NAME: ${{ secrets.RELEASE_NAME }}
  APP: ${{ secrets.APP }}
  REPLICA_COUNT: ${{ secrets.REPLICA_COUNT }}
- ASSETS_URL: ${{ secrets.ASSETS_URL }}
  SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
- DB_HOST: ${{ secrets.DB_HOST }}
  SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
  INGRESS_NAME: ${{ secrets.INGRESS_NAME }}
  INGRESS_HOST: ${{ secrets.INGRESS_HOST }}
  CERTIFICATE_NAME: ${{ secrets.CERTIFICATE_NAME }}
- MYSQL_NAME: ${{ secrets.MYSQL_NAME }}
- MYSQL_SERVICE: ${{ secrets.MYSQL_SERVICE }}
- MYSQL_VOLUME: ${{ secrets.MYSQL_VOLUME }}
- REDIS_NAME: ${{ secrets.REDIS_NAME }}
+ TEST_LOGIN_SERVICE_URL: ${{ secrets.TEST_LOGIN_SERVICE_URL }}
+ TEST_LOGIN_SERVICE_FLAVOUR: ${{ secrets.TEST_LOGIN_SERVICE_FLAVOUR }}
+ TEST_SCHEMA_REGISTRY_URL: ${{ secrets.TEST_SCHEMA_REGISTRY_URL }}
+ DEBUG: ${{ secrets.DEBUG }}
  CLUSTER_NAME: ${{ secrets.CLUSTER_NAME }}
  CLUSTER_ZONE: ${{ secrets.CLUSTER_ZONE }}
  DOCKER_IMAGE_TAG: eu.gcr.io/$PROJECT_ID/$GCR_NAME:$GITHUB_SHA
+ APQ_ENABLED: ${{ secrets.APQ_ENABLED }}
+ SUBSCRIPTIONS_ENABLED: ${{ secrets.SUBSCRIPTIONS_ENABLED }}
+ INTROSPECTION_ENABLED: ${{ secrets.INTROSPECTION_ENABLED }}
+ PLAYGROUND_ENABLED: ${{ secrets.PLAYGROUND_ENABLED }}
+ TESTING_SENTRY_DSN: ${{ secrets.TESTING_SENTRY_DSN }}
+ APP_PORT: ${{ secrets.APP_PORT }}
+ TEST_JAEGER_URL: ${{ secrets.TEST_JAEGER_URL }}
+ SERVICE_PORT: ${{ secrets.SERVICE_PORT }}
+ TEST_HOST_DOMAIN: ${{ secrets.TEST_HOST_DOMAIN }}
+ READINESSS_PROBE_INITIAL_DELAY_SECONDS: ${{ secrets.READINESSS_PROBE_INITIAL_DELAY_SECONDS }}
+ READINESSS_PROBE_PERIOD_SECONDS: ${{ secrets.READINESSS_PROBE_PERIOD_SECONDS }}
+ LIVENESS_PROBE_INITIAL_DELAY_SECONDS: ${{ secrets.LIVENESS_PROBE_INITIAL_DELAY_SECONDS }}
+ LIVENESS_PROBE_PERIOD_SECONDS: ${{ secrets.LIVENESS_PROBE_PERIOD_SECONDS }}
 
 jobs:
   build_and_publish_image:
@@ -72,7 +83,7 @@ jobs:
       - name: Deploy Release on cluster
         run: |
           # install helm/upgrade helm chart
-          helm upgrade $RELEASE_NAME ./deployment/k8s-chart \
+          helm upgrade ${{ secrets.RELEASE_NAME }} ./deployment/k8s-chart \
             --install \
             --debug \
             --namespace="${NAMESPACE}" \
@@ -80,33 +91,43 @@ jobs:
             --set app.name="${APP}" \
             --set app.project_id="${PROJECT_ID}" \
             --set app.namespace="${NAMESPACE}" \
-            --set app.certificate.namespace="cert-manager" \
-            --set app.certificate.acme.email="calvineotieno010@gmail.com" \
+            --set app.image=eu.gcr.io/$PROJECT_ID/$GCR_NAME:$GITHUB_SHA \
+            --set app.project_id="${PROJECT_ID}" \
+            --set app.name="gateway-app-test" \
+            --set app.namespace="gateway-test-namespace" \
+            --set app.replicaCount=1 \
+            --set app.service.name="gateway-test-service" \
+            --set app.service.namespace="gateway-test-namespace" \
+            --set app.container.env.login_service_url="${TEST_LOGIN_SERVICE_URL}" \
+            --set app.container.env.login_service_flavour="${TEST_LOGIN_SERVICE_FLAVOUR}" \
+            --set app.container.env.schema_registry_url="${TEST_SCHEMA_REGISTRY_URL}" \
+            --set app.container.env.debug="${DEBUG}" \
+            --set app.container.env.apq_enabled="${APQ_ENABLED}" \
+            --set app.container.env.service_check_health_enabled="false" \
+            --set app.container.env.polling_enabled="true" \
+            --set app.container.env.polling_interval="300000" \
+            --set app.container.env.subscriptions_enabled="${SUBSCRIPTIONS_ENABLED}" \
+            --set app.container.env.introspection_enabled="${INTROSPECTION_ENABLED}" \
+            --set app.container.env.playground_enabled="${PLAYGROUND_ENABLED}" \
+            --set app.container.env.sentry_dns="${TESTING_SENTRY_DSN}" \
+            --set app.container.env.port="${APP_PORT}" \
+            --set app.container.env.jaeger_url="${TEST_JAEGER_URL}" \
+            --set app.service.port="${SERVICE_PORT}" \
+            --set ingress.name="gateway-test-ingress" \
+            --set ingress.annotations.tls.acme="true" \
+            --set ingress.namespace="gateway-test-namespace" \
+            --set ingress.spec.rules.pathType="Prefix" \
+            --set ingress.annotations.acme.http_edit_in_place="true" \
+            --set ingress.host="${TEST_HOST_DOMAIN}" \
+            --set ingress.annotations.class="kong" \
+            --set app.certificate.name="gateway-test-certificate" \
+            --set app.certificate.acme.email="calvine.otieno@healthcloud.co.ke" \
+            --set app.certificate.tls.acme="true" \
             --set app.certificate.issuer.name="letsencrypt-prod" \
             --set app.certificate.acme.server="https://acme-v02.api.letsencrypt.org/directory" \
-            --set app.replicaCount="${REPLICA_COUNT}" \
-            --set app.container.env.assets_url="${ASSETS_URL}" \
-            --set app.container.env.sentry_dns="${SENTRY_DSN}" \
-            --set app.image=eu.gcr.io/$PROJECT_ID/$GCR_NAME:$GITHUB_SHA \
-            --set app.container.env.db_host="${DB_HOST}" \
-            --set app.service.name="${SERVICE_NAME}" \
-            --set app.service.namespace="${NAMESPACE}" \
-            --set ingress.name="${INGRESS_NAME}" \
-            --set ingress.namespace="${NAMESPACE}" \
-            --set ingress.host="${INGRESS_HOST}" \
-            --set ingress.annotations.acme.http_edit_in_place="true" \
-            --set ingress.annotations.class="kong" \
-            --set ingress.spec.rules.pathType="Prefix" \
-            --set ingress.annotations.tls.acme="true" \
-            --set ingress.allow_http="false" \
-            --set app.certificate.name="${CERTIFICATE_NAME}" \
-            --set mysql.name="${MYSQL_NAME}" \
-            --set mysql.service.name="${DB_HOST}" \
-            --set mysql.volume.pvc.name="${MYSQL_VOLUME}" \
-            --set mysql.namespace="${NAMESPACE}" \
-            --set mysql.service.namespace="${NAMESPACE}" \
-            --set mysql.config.namespace="${NAMESPACE}" \
-            --set mysql.volume.pvc.namespace="${NAMESPACE}" \
-            --set redis.name="${REDIS_NAME}" \
-            --set redis.namespace="${NAMESPACE}" \
+            --set app.readinesss_probe_initial_delay_seconds="${READINESSS_PROBE_INITIAL_DELAY_SECONDS}" \
+            --set app.readinesss_probe_period_seconds="${READINESSS_PROBE_PERIOD_SECONDS}" \
+            --set app.liveness_probe_initial_delay_seconds="${LIVENESS_PROBE_INITIAL_DELAY_SECONDS}" \
+            --set app.liveness_probe_period_seconds="${LIVENESS_PROBE_PERIOD_SECONDS}" \
+            --set app.secrets.name="gateway-secrets" \
             --wait
