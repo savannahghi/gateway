@@ -1,6 +1,8 @@
 name: Deployment
 
-on: [push]
+on:
+  push:
+    branches: [main]
 env:
  GCR_NAME: ${{ secrets.GCR_NAME }}
  GCLOUD_SERVICE_KEY: ${{ secrets.GCLOUD_SERVICE_KEY }}
