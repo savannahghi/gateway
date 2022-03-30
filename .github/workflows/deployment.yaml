@@ -1,8 +1,7 @@
 name: Deployment
 
-on:
-  push:
-    branches: [main]
+on: push
+
 env:
  GCR_NAME: ${{ secrets.GCR_NAME }}
  GCLOUD_SERVICE_KEY: ${{ secrets.GCLOUD_SERVICE_KEY }}
@@ -44,7 +43,7 @@ jobs:
       - uses: actions/checkout@v2
 
       # Setup gcloud CLI
-      - uses: google-github-actions/setup-gcloud@master
+      - uses: google-github-actions/setup-gcloud@v0
         with:
           service_account_key: ${{ secrets.GCLOUD_SERVICE_KEY }}
           project_id: ${{ secrets.GCLOUD_PROJECT_ID }}
@@ -63,7 +62,7 @@ jobs:
         run: |-
           docker push eu.gcr.io/$PROJECT_ID/$GCR_NAME:$GITHUB_SHA
 
-  deployment:
+  deploy_to_testing:
     name: Deploy Registry to cluster
     runs-on: ubuntu-latest
     needs: [build_and_publish_image]
@@ -131,5 +130,77 @@ jobs:
             --set app.readinesss_probe_period_seconds="${READINESSS_PROBE_PERIOD_SECONDS}" \
             --set app.liveness_probe_initial_delay_seconds="${LIVENESS_PROBE_INITIAL_DELAY_SECONDS}" \
             --set app.liveness_probe_period_seconds="${LIVENESS_PROBE_PERIOD_SECONDS}" \
+            --set app.secrets.name="gateway-secrets" \
+            --wait
+
+  
+  deploy_to_staging:
+    name: Deploy Staging Registry to cluster
+    runs-on: ubuntu-latest
+    needs: [build_and_publish_image]
+    environment:
+      name: staging
+    steps:
+      - name: Checkout working branches
+        uses: actions/checkout@v2
+
+      - name: Install helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+      
+      - name: Get cluster auth credentials
+        run: |
+          echo $GCLOUD_SERVICE_KEY > ${HOME}/gcloud.json
+          gcloud auth activate-service-account --key-file=${HOME}/gcloud.json
+          gcloud auth configure-docker
+          gcloud container clusters get-credentials ${{secrets.CLUSTER_NAME}} --zone ${{secrets.CLUSTER_ZONE}} --project ${{secrets.PROJECT_ID}}
+      
+      - name: Deploy Release on cluster
+        run: |
+          # install helm/upgrade helm chart
+          helm upgrade ${{ secrets.RELEASE_NAME }} ./deployment/k8s-chart \
+            --install \
+            --debug \
+            --namespace="${{secrets.NAMESPACE}}" \
+            --set app.release_name="${{secrets.RELEASE_NAME}}" \
+            --set app.name="${{secrets.APP}}" \
+            --set app.project_id="${{secrets.PROJECT_ID}}" \
+            --set app.namespace="${{secrets.NAMESPACE}}" \
+            --set app.image=eu.gcr.io/$PROJECT_ID/$GCR_NAME:$GITHUB_SHA \
+            --set app.project_id="${{secrets.PROJECT_ID}}" \
+            --set app.replicaCount=1 \
+            --set app.service.name="gateway-staging-service" \
+            --set app.service.namespace="gateway-staging-namespace" \
+            --set app.container.env.login_service_url="${{secrets.STAGING_LOGIN_SERVICE_URL}}" \
+            --set app.container.env.login_service_flavour="${{secrets.STAGING_LOGIN_SERVICE_FLAVOUR}}" \
+            --set app.container.env.schema_registry_url="${{secrets.STAGING_SCHEMA_REGISTRY_URL}}" \
+            --set app.container.env.debug="${{secrets.DEBUG}}" \
+            --set app.container.env.apq_enabled="${{secrets.APQ_ENABLED}}" \
+            --set app.container.env.service_check_health_enabled="false" \
+            --set app.container.env.polling_enabled="true" \
+            --set app.container.env.polling_interval="300000" \
+            --set app.container.env.subscriptions_enabled="${{secrets.SUBSCRIPTIONS_ENABLED}}" \
+            --set app.container.env.introspection_enabled="${{secrets.INTROSPECTION_ENABLED}}" \
+            --set app.container.env.playground_enabled="${{secrets.PLAYGROUND_ENABLED}}" \
+            --set app.container.env.sentry_dns="${{secrets.TESTING_SENTRY_DSN}}" \
+            --set app.container.env.port="${{secrets.APP_PORT}}" \
+            --set app.container.env.jaeger_url="${{secrets.TEST_JAEGER_URL}}" \
+            --set app.service.port="${{secrets.SERVICE_PORT}}" \
+            --set ingress.name="gateway-staging-ingress" \
+            --set ingress.annotations.tls.acme="true" \
+            --set ingress.namespace="gateway-staging-namespace" \
+            --set ingress.spec.rules.pathType="Prefix" \
+            --set ingress.annotations.acme.http_edit_in_place="true" \
+            --set ingress.host="${{secrets.STAGING_HOST_DOMAIN}}" \
+            --set ingress.annotations.class="kong" \
+            --set app.certificate.name="gateway-staging-certificate" \
+            --set app.certificate.acme.email="calvine.otieno@healthcloud.co.ke" \
+            --set app.certificate.tls.acme="true" \
+            --set app.certificate.issuer.name="letsencrypt-prod" \
+            --set app.certificate.acme.server="https://acme-v02.api.letsencrypt.org/directory" \
+            --set app.readinesss_probe_initial_delay_seconds="${{secrets.READINESSS_PROBE_INITIAL_DELAY_SECONDS}}" \
+            --set app.readinesss_probe_period_seconds="${{secrets.READINESSS_PROBE_PERIOD_SECONDS}}" \
+            --set app.liveness_probe_initial_delay_seconds="${{secrets.LIVENESS_PROBE_INITIAL_DELAY_SECONDS}}" \
+            --set app.liveness_probe_period_seconds="${{secrets.LIVENESS_PROBE_PERIOD_SECONDS}}" \
             --set app.secrets.name="gateway-secrets" \
             --wait
